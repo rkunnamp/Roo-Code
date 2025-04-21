@@ -1,5 +1,6 @@
 import path from "path"
 import fs from "fs/promises"
+import { v4 as uuidv4 } from "uuid"
 
 import { ToolUse, AskApproval, HandleError, PushToolResult, RemoveClosingTag } from "../../shared/tools"
 import { Cline } from "../Cline"
@@ -67,7 +68,12 @@ export async function listCodeDefinitionNamesTool(
 				await cline.getFileContextTracker().trackFileContext(relPath, "read_tool" as RecordSource)
 			}
 
-			pushToolResult(result)
+			// Wrap the result in tagged_content for summarization/pruning
+			const contentId = uuidv4()
+			const sourceInfo = `list_code_definition_names: path=${relPath}`
+			const taggedResult = `<tagged_content id="${contentId}" type="tool_result" source="${sourceInfo}">\n${result}\n</tagged_content>`
+			pushToolResult(taggedResult)
+
 			return
 		}
 	} catch (error) {

@@ -7,6 +7,7 @@ export const EXPERIMENT_IDS = {
 	INSERT_BLOCK: "insert_content",
 	SEARCH_AND_REPLACE: "search_and_replace",
 	POWER_STEERING: "powerSteering",
+	CONTENT_SUMMARIZATION: "contentSummarization", // Add new experiment ID
 } as const satisfies Record<string, ExperimentId>
 
 type _AssertExperimentIds = AssertEqual<Equals<ExperimentId, Values<typeof EXPERIMENT_IDS>>>
@@ -21,6 +22,7 @@ export const experimentConfigsMap: Record<ExperimentKey, ExperimentConfig> = {
 	INSERT_BLOCK: { enabled: false },
 	SEARCH_AND_REPLACE: { enabled: false },
 	POWER_STEERING: { enabled: false },
+	CONTENT_SUMMARIZATION: { enabled: false }, // Add default config (disabled)
 }
 
 export const experimentDefault = Object.fromEntries(

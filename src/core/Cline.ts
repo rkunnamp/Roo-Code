@@ -192,6 +192,7 @@ export class Cline extends EventEmitter<ClineEvents> {
 
 	// metrics
 	private toolUsage: ToolUsage = {}
+	private contentSummaries: Map<string, string> = new Map() // Added to store content summaries
 
 	constructor({
 		provider,
@@ -1309,19 +1310,65 @@ export class Cline extends EventEmitter<ClineEvents> {
 					break
 				}
 
-				const pushToolResult = (content: ToolResponse) => {
-					this.userMessageContent.push({
-						type: "text",
-						text: `${toolDescription()} Result:`,
-					})
-					if (typeof content === "string") {
+				const pushToolResult = async (content: ToolResponse) => {
+					// Make async to fetch state
+					const { experiments } = (await this.providerRef.deref()?.getState()) ?? {}
+					const isSummarizationEnabled = experiments?.[EXPERIMENT_IDS.CONTENT_SUMMARIZATION]
+
+					let formattedContent: string | (Anthropic.TextBlockParam | Anthropic.ImageBlockParam)[]
+
+					if (isSummarizationEnabled) {
+						const id = crypto.randomUUID()
+						const toolName = block.name // Get tool name directly from block
+						let innerContent: string
+
+						if (typeof content === "string") {
+							innerContent = content || "(tool did not return anything)"
+						} else {
+							// Convert content blocks to a single string representation
+							innerContent = content
+								.map((block) => {
+									if (block.type === "text") {
+										return block.text
+									} else if (block.type === "image") {
+										// Represent image block source if available, otherwise placeholder
+										const src = block.source?.data
+											? `data:${block.source.media_type};base64,...`
+											: "[image]"
+										return `<image src="${src}" />` // Simple XML representation
+									}
+									return ""
+								})
+								.join("\n") // Join text blocks with newline
+						}
+
+						// Wrap the combined content in tags
+						formattedContent = `<tagged_content id="${id}" type="tool_result" source="${toolName}">${innerContent}</tagged_content>`
+
 						this.userMessageContent.push({
 							type: "text",
-							text: content || "(tool did not return anything)",
+							text: `${toolDescription()} Result:`, // Keep the original prefix for clarity
+						})
+						this.userMessageContent.push({
+							type: "text",
+							text: formattedContent, // Push the tagged content as a single text block
 						})
 					} else {
-						this.userMessageContent.push(...content)
+						// Original logic if summarization is disabled
+						this.userMessageContent.push({
+							type: "text",
+							text: `${toolDescription()} Result:`,
+						})
+						if (typeof content === "string") {
+							this.userMessageContent.push({
+								type: "text",
+								text: content || "(tool did not return anything)",
+							})
+						} else {
+							this.userMessageContent.push(...content)
+						}
 					}
+
 					// once a tool result has been collected, ignore all other tool uses since we should only ever present one tool result per message
 					this.didAlreadyUseTool = true
 
@@ -1890,13 +1937,26 @@ export class Cline extends EventEmitter<ClineEvents> {
 			await this.saveClineMessages()
 			await this.providerRef.deref()?.postStateToWebview()
 
-			// now add to apiconversationhistory
-			// need to save assistant responses to file before proceeding to tool use since user can exit at any moment and we wouldn't be able to save the assistant's response
-			let didEndLoop = false
+			// Process summaries and clean assistant message before adding to history
+			let cleanedAssistantMessage = assistantMessage
+			let didEndLoop = false // Moved declaration here
 			if (assistantMessage.length > 0) {
+				const summaryRegex = /<remove part="([^"]+)">([\s\S]*?)<\/remove>/g
+				let match
+				while ((match = summaryRegex.exec(assistantMessage)) !== null) {
+					const id = match[1]
+					const summary = match[2].trim()
+					if (id && summary) {
+						this.contentSummaries.set(id, summary)
+						console.log(`[Summarization] Stored summary for ID: ${id}`)
+					}
+				}
+				// Remove the <remove> tags from the message content
+				cleanedAssistantMessage = assistantMessage.replace(summaryRegex, "").trim()
+
 				await this.addToApiConversationHistory({
 					role: "assistant",
-					content: [{ type: "text", text: assistantMessage }],
+					content: [{ type: "text", text: cleanedAssistantMessage }], // Use cleaned message
 				})
 				telemetryService.captureConversationMessage(this.taskId, "assistant")
 
@@ -1920,6 +1980,18 @@ export class Cline extends EventEmitter<ClineEvents> {
 					this.consecutiveMistakeCount++
 				}
 
+				const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
+				didEndLoop = recDidEndLoop
+			} else if (cleanedAssistantMessage.length > 0) {
+				// Handle cases where the original message ONLY contained <remove> tags and is now empty
+				// No tool use happened, proceed as if no tools were used
+				// Need to ensure userMessageContent is ready
+				await pWaitFor(() => this.userMessageContentReady)
+				this.userMessageContent.push({
+					type: "text",
+					text: formatResponse.noToolsUsed(),
+				})
+				this.consecutiveMistakeCount++
 				const recDidEndLoop = await this.recursivelyMakeClineRequests(this.userMessageContent)
 				didEndLoop = recDidEndLoop
 			} else {

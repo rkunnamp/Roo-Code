@@ -1,4 +1,5 @@
 import path from "path"
+import { v4 as uuidv4 } from "uuid"
 
 import { Cline } from "../Cline"
 import { ToolUse, AskApproval, HandleError, PushToolResult, RemoveClosingTag } from "../../shared/tools"
@@ -64,7 +65,11 @@ export async function searchFilesTool(
 				return
 			}
 
-			pushToolResult(results)
+			// Wrap the result in tagged_content for summarization/pruning
+			const contentId = uuidv4()
+			const sourceInfo = `search_files: path=${relDirPath}, regex=${regex}${filePattern ? `, file_pattern=${filePattern}` : ""}`
+			const taggedResult = `<tagged_content id="${contentId}" type="tool_result" source="${sourceInfo}">\n${results}\n</tagged_content>`
+			pushToolResult(taggedResult)
 
 			return
 		}

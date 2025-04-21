@@ -1,5 +1,6 @@
 import fs from "fs/promises"
 import * as path from "path"
+import { v4 as uuidv4 } from "uuid"
 
 import delay from "delay"
 
@@ -52,13 +53,39 @@ export async function executeCommandTool(
 				return
 			}
 
-			const [userRejected, result] = await executeCommand(cline, command, customCwd)
+			const [userRejected, rawResult] = await executeCommand(cline, command, customCwd)
 
 			if (userRejected) {
 				cline.didRejectTool = true
 			}
 
-			pushToolResult(result)
+			// Wrap the result in tagged_content for summarization/pruning
+			let taggedResult: ToolResponse
+			const contentId = uuidv4()
+			const sourceInfo = `execute_command: command=${command}${customCwd ? `, cwd=${customCwd}` : ""}`
+
+			if (typeof rawResult === "string") {
+				// Result is just text
+				taggedResult = `<tagged_content id="${contentId}" type="tool_result" source="${sourceInfo}">\n${rawResult}\n</tagged_content>`
+			} else if (Array.isArray(rawResult)) {
+				// Result is an array of text and image blocks
+				taggedResult = rawResult.map((block) => {
+					if (block.type === "text") {
+						return {
+							...block,
+							text: `<tagged_content id="${contentId}" type="tool_result" source="${sourceInfo}">\n${block.text}\n</tagged_content>`,
+						}
+					}
+					// Keep image blocks unchanged
+					return block
+				})
+			} else {
+				// Fallback for unexpected type, though this shouldn't happen based on ToolResponse type
+				console.error("Unexpected rawResult type in executeCommandTool:", rawResult)
+				taggedResult = typeof rawResult === "object" ? JSON.stringify(rawResult) : String(rawResult)
+			}
+
+			pushToolResult(taggedResult)
 
 			return
 		}

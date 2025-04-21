@@ -62,6 +62,7 @@ type TruncateOptions = {
 	contextWindow: number
 	maxTokens?: number | null
 	apiHandler: ApiHandler
+	contentSummaries?: Map<string, string> // Added to receive summaries
 }
 
 /**
@@ -77,6 +78,7 @@ export async function truncateConversationIfNeeded({
 	contextWindow,
 	maxTokens,
 	apiHandler,
+	contentSummaries, // Destructure summaries
 }: TruncateOptions): Promise<Anthropic.Messages.MessageParam[]> {
 	// Calculate the maximum tokens reserved for response
 	const reservedTokens = maxTokens || contextWindow * 0.2
@@ -95,6 +97,119 @@ export async function truncateConversationIfNeeded({
 	// Truncate if we're within TOKEN_BUFFER_PERCENTAGE of the context window
 	const allowedTokens = contextWindow * (1 - TOKEN_BUFFER_PERCENTAGE) - reservedTokens
 
-	// Determine if truncation is needed and apply if necessary
-	return effectiveTokens > allowedTokens ? truncateConversation(messages, 0.5) : messages
+	// Determine if truncation is needed
+	if (effectiveTokens > allowedTokens) {
+		console.log(
+			`[Truncation] Need to truncate. Effective tokens ${effectiveTokens} > Allowed tokens ${allowedTokens}`,
+		)
+		// Attempt to summarize first, then truncate if still needed
+		return summarizeAndTruncateConversation(messages, contentSummaries ?? new Map(), apiHandler, allowedTokens)
+	} else {
+		// No truncation needed
+		return messages
+	}
+}
+
+/**
+ * Tries to reduce token count by replacing tagged content with summaries.
+ * If still over the limit after summarization, performs standard truncation.
+ *
+ * @param messages The full message history.
+ * @param contentSummaries A map of content IDs to their summaries.
+ * @param apiHandler API handler for token counting.
+ * @param allowedTokens The maximum allowed tokens for the context.
+ * @returns The potentially summarized and/or truncated messages.
+ */
+async function summarizeAndTruncateConversation(
+	messages: Anthropic.Messages.MessageParam[],
+	contentSummaries: Map<string, string>,
+	apiHandler: ApiHandler,
+	allowedTokens: number,
+): Promise<Anthropic.Messages.MessageParam[]> {
+	if (messages.length <= 2) {
+		// Cannot summarize or truncate further
+		return messages
+	}
+
+	const firstMessage = messages[0]
+	const lastMessage = messages[messages.length - 1]
+	const middleMessages = messages.slice(1, -1)
+
+	let summarizationApplied = false
+	const summarizedMiddleMessages: Anthropic.Messages.MessageParam[] = []
+
+	const tagRegex = /(<tagged_content id="([^"]+)">)([\s\S]*?)(<\/tagged_content>)/g
+
+	for (const message of middleMessages) {
+		let modifiedMessage = { ...message } // Create a copy to modify
+		if (message.role === "user" && Array.isArray(message.content)) {
+			const newContent: Anthropic.Messages.ContentBlock[] = []
+			let messageModified = false
+			for (const block of message.content) {
+				if (block.type === "text") {
+					let originalText = block.text
+					const replacedText = originalText.replace(
+						tagRegex,
+						(match, openingTag, id, _content, closingTag) => {
+							const summary = contentSummaries.get(id)
+							if (summary) {
+								summarizationApplied = true
+								messageModified = true
+								console.log(`[Summarization] Applying summary for ID: ${id}`)
+								return `[Content for part ${id} was summarized: ${summary}]`
+							}
+							return match // Return original match if no summary found
+						},
+					)
+					// Ensure we create a new block object if text changed and cast appropriately
+					newContent.push(
+						(replacedText !== originalText
+							? { ...block, text: replacedText }
+							: block) as Anthropic.Messages.ContentBlock,
+					)
+				} else {
+					newContent.push(block as Anthropic.Messages.ContentBlock) // Keep non-text blocks as is, cast type
+				}
+			}
+			if (messageModified) {
+				// Ensure we create a new message object if content changed
+				modifiedMessage.content = newContent
+			}
+		}
+		summarizedMiddleMessages.push(modifiedMessage)
+	}
+
+	if (!summarizationApplied) {
+		// No summaries could be applied, perform standard truncation
+		console.log("[Truncation] No summaries applied, performing standard truncation.")
+		return truncateConversation(messages, 0.5)
+	}
+
+	const summarizedMessages = [firstMessage, ...summarizedMiddleMessages, lastMessage]
+
+	// Recalculate total tokens for the summarized conversation
+	let summarizedTokens = 0
+	for (const msg of summarizedMessages) {
+		const content = msg.content
+		try {
+			summarizedTokens += Array.isArray(content)
+				? await estimateTokenCount(content, apiHandler)
+				: await estimateTokenCount([{ type: "text", text: content as string }], apiHandler)
+		} catch (error) {
+			console.error("[Summarization] Error estimating token count for message:", msg, error)
+			// If counting fails for a message, add a high penalty or handle appropriately
+			summarizedTokens += 1000 // Add arbitrary penalty
+		}
+	}
+
+	console.log(`[Summarization] Tokens after summarization: ${summarizedTokens}`)
+
+	// If still over the limit after summarization, apply standard truncation
+	if (summarizedTokens > allowedTokens) {
+		console.log("[Truncation] Still over limit after summarization, performing standard truncation.")
+		return truncateConversation(summarizedMessages, 0.5)
+	} else {
+		console.log("[Summarization] Summarization sufficient, no further truncation needed.")
+		return summarizedMessages // Summarization was enough
+	}
 }

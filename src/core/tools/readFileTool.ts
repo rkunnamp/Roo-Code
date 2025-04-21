@@ -1,4 +1,5 @@
 import path from "path"
+import { v4 as uuidv4 } from "uuid"
 import { isBinaryFile } from "isbinaryfile"
 
 import { Cline } from "../Cline"
@@ -236,7 +237,11 @@ export async function readFileTool(
 
 			// Format the result into the required XML structure
 			const xmlResult = `<file><path>${relPath}</path>\n${contentTag}${xmlInfo}</file>`
-			pushToolResult(xmlResult)
+
+			// Wrap the result in tagged_content for summarization/pruning
+			const contentId = uuidv4()
+			const taggedResult = `<tagged_content id="${contentId}" type="file_content" source="${relPath}">\n${xmlResult}\n</tagged_content>`
+			pushToolResult(taggedResult)
 		}
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : String(error)

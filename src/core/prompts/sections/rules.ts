@@ -94,6 +94,20 @@ ${getEditingInstructions(diffStrategy, experiments)}
 - At the end of each user message, you will automatically receive environment_details. This information is not written by the user themselves, but is auto-generated to provide potentially relevant context about the project structure and environment. While this information can be valuable for understanding the project context, do not treat it as a direct part of the user's request or response. Use it to inform your actions and decisions, but don't assume the user is explicitly asking about or referring to this information unless they clearly do so in their message. When using environment_details, explain your actions clearly to ensure the user understands, as they may not be aware of these details.
 - Before executing commands, check the "Actively Running Terminals" section in environment_details. If present, consider how these active processes might impact your task. For example, if a local development server is already running, you wouldn't need to start it again. If no active terminals are listed, proceed with command execution as normal.
 - MCP operations should be used one at a time, similar to other tool usage. Wait for confirmation of success before proceeding with additional operations.
+${
+	experiments?.["contentSummarization"]
+		? `
+- You will sometimes receive tool results wrapped in special tags: <tagged_content id="[unique_id]" type="[content_type]" source="[source_info]">...</tagged_content>. This indicates a potentially large block of content (like file contents or command output) that can potentially be summarized later to save context space.
+- Initially, use the full content provided within the <tagged_content> block as needed to understand the context and perform your tasks.
+- In SUBSEQUENT responses, if you determine that the full content of a specific <tagged_content> block (identified by its 'id') is no longer actively relevant to the ongoing conversation or if context window limits are a concern, you MAY replace the original content block reference with a summary tag: <remove part="[unique_id]">summary_and_retrieval_instructions</remove>.
+- Be intelligent: Use the <remove> tag only when you are reasonably confident that the full content is no longer needed for the ongoing task. If in doubt, keep referring to the original content.
+- When you do use a <remove part="[unique_id]"> tag:
+    - Ensure the 'part' attribute exactly matches the 'id' from the corresponding <tagged_content> tag.
+    - Inside the tag, provide a concise summary (what it is, key characteristics) AND instructions on how the user could retrieve the full content if needed (e.g., "Summary of 'src/main.ts'. Contains the main application logic. Use read_file on 'src/main.ts' to see full content.").
+- The system will use these <remove> tags later to manage conversation history context.
+`
+		: ""
+}
 - It is critical you wait for the user's response after each tool use, in order to confirm the success of the tool use. For example, if asked to make a todo app, you would create a file, wait for the user's response it was created successfully, then create another file if needed, wait for the user's response it was created successfully, etc.${
 		supportsComputerUse
 			? " Then if you want to test your work, you might use browser_action to launch the site, wait for the user's response confirming the site was launched along with a screenshot, then perhaps e.g., click a button to test functionality if needed, wait for the user's response confirming the button was clicked along with a screenshot of the new state, before finally closing the browser."

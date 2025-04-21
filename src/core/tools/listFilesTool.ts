@@ -1,4 +1,5 @@
 import * as path from "path"
+import { v4 as uuidv4 } from "uuid"
 
 import { Cline } from "../Cline"
 import { ClineSayTool } from "../../shared/ExtensionMessage"
@@ -73,7 +74,11 @@ export async function listFilesTool(
 				return
 			}
 
-			pushToolResult(result)
+			// Wrap the result in tagged_content for summarization/pruning
+			const contentId = uuidv4()
+			const sourceInfo = `list_files: path=${relDirPath}, recursive=${recursive}`
+			const taggedResult = `<tagged_content id="${contentId}" type="tool_result" source="${sourceInfo}">\n${result}\n</tagged_content>`
+			pushToolResult(taggedResult)
 		}
 	} catch (error) {
 		await handleError("listing files", error)
