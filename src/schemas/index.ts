@@ -832,6 +832,8 @@ export const toolNames = [
 	"browser_action",
 	"use_mcp_tool",
 	"access_mcp_resource",
+	"list_mcp_server_tools",
+	"get_mcp_server_tool_defs",
 	"ask_followup_question",
 	"attempt_completion",
 	"switch_mode",

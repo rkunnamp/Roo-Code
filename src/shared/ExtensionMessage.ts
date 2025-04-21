@@ -264,7 +264,7 @@ export type BrowserActionResult = {
 
 export interface ClineAskUseMcpServer {
 	serverName: string
-	type: "use_mcp_tool" | "access_mcp_resource"
+	type: "use_mcp_tool" | "access_mcp_resource" | "list_mcp_server_tools" | "get_mcp_server_tool_defs"
 	toolName?: string
 	arguments?: string
 	uri?: string

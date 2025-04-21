@@ -74,6 +74,8 @@ import { browserActionTool } from "./tools/browserActionTool"
 import { executeCommandTool } from "./tools/executeCommandTool"
 import { useMcpToolTool } from "./tools/useMcpToolTool"
 import { accessMcpResourceTool } from "./tools/accessMcpResourceTool"
+import { listMcpServerToolsTool } from "./tools/listMcpServerToolsTool"
+import { getMcpServerToolDefsTool } from "./tools/getMcpServerToolDefsTool"
 import { askFollowupQuestionTool } from "./tools/askFollowupQuestionTool"
 import { switchModeTool } from "./tools/switchModeTool"
 import { attemptCompletionTool } from "./tools/attemptCompletionTool"
@@ -1262,6 +1264,10 @@ export class Cline extends EventEmitter<ClineEvents> {
 							return `[${block.name} for '${block.params.server_name}']`
 						case "access_mcp_resource":
 							return `[${block.name} for '${block.params.server_name}']`
+						case "list_mcp_server_tools":
+							return `[${block.name} for '${block.params.server_name}']`
+						case "get_mcp_server_tool_defs":
+							return `[${block.name} for '${block.params.server_name}']`
 						case "ask_followup_question":
 							return `[${block.name} for '${block.params.question}']`
 						case "attempt_completion":
@@ -1483,6 +1489,26 @@ export class Cline extends EventEmitter<ClineEvents> {
 						break
 					case "use_mcp_tool":
 						await useMcpToolTool(this, block, askApproval, handleError, pushToolResult, removeClosingTag)
+						break
+					case "list_mcp_server_tools":
+						await listMcpServerToolsTool(
+							this,
+							block,
+							askApproval,
+							handleError,
+							pushToolResult,
+							removeClosingTag,
+						)
+						break
+					case "get_mcp_server_tool_defs":
+						await getMcpServerToolDefsTool(
+							this,
+							block,
+							askApproval,
+							handleError,
+							pushToolResult,
+							removeClosingTag,
+						)
 						break
 					case "access_mcp_resource":
 						await accessMcpResourceTool(

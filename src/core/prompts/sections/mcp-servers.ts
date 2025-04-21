@@ -23,7 +23,7 @@ export async function getMcpServersSection(
 		${JSON.stringify(tool.inputSchema, null, 2).split("\n").join("\n    ")}`
 									: ""
 
-								return `- ${tool.name}: ${tool.description}\n${schemaStr}`
+								return `- ${tool.name}`
 							})
 							.join("\n\n")
 

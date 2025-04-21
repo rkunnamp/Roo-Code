@@ -144,6 +144,16 @@ export interface NewTaskToolUse extends ToolUse {
 	params: Partial<Pick<Record<ToolParamName, string>, "mode" | "message">>
 }
 
+export interface ListMcpServerToolsToolUse extends ToolUse {
+	name: "list_mcp_server_tools"
+	params: Partial<Pick<Record<ToolParamName, string>, "server_name">>
+}
+
+export interface GetMcpServerToolDefsToolUse extends ToolUse {
+	name: "get_mcp_server_tool_defs"
+	params: Partial<Pick<Record<ToolParamName, string>, "server_name">>
+}
+
 // Define tool group configuration
 export type ToolGroupConfig = {
 	tools: readonly string[]
@@ -163,6 +173,8 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	browser_action: "use a browser",
 	use_mcp_tool: "use mcp tools",
 	access_mcp_resource: "access mcp resources",
+	list_mcp_server_tools: "list mcp tools",
+	get_mcp_server_tool_defs: "get mcp tool definitions",
 	ask_followup_question: "ask questions",
 	attempt_completion: "complete tasks",
 	switch_mode: "switch modes",
@@ -188,7 +200,7 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 		tools: ["execute_command"],
 	},
 	mcp: {
-		tools: ["use_mcp_tool", "access_mcp_resource"],
+		tools: ["use_mcp_tool", "access_mcp_resource", "list_mcp_server_tools", "get_mcp_server_tool_defs"],
 	},
 	modes: {
 		tools: ["switch_mode", "new_task"],
