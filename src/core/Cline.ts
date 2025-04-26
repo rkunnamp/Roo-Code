@@ -1269,6 +1269,8 @@ export class Cline extends EventEmitter<ClineEvents> {
 							return `[${block.name} for '${block.params.server_name}']`
 						case "get_mcp_server_tool_defs":
 							return `[${block.name} for '${block.params.server_name}']`
+						case "get_native_tool_def":
+							return `[${block.name} for '${block.params.tool_name}']`
 						case "ask_followup_question":
 							return `[${block.name} for '${block.params.question}']`
 						case "attempt_completion":
@@ -1281,6 +1283,8 @@ export class Cline extends EventEmitter<ClineEvents> {
 							const modeName = getModeBySlug(mode, customModes)?.name ?? mode
 							return `[${block.name} in ${modeName} mode: '${message}']`
 						}
+						default:
+							return `[${block.name}]`
 					}
 				}
 

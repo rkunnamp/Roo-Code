@@ -40,6 +40,7 @@ export const toolParamNames = [
 	"text",
 	"server_name",
 	"tool_name",
+	"tool_names",
 	"arguments",
 	"uri",
 	"question",
@@ -151,7 +152,12 @@ export interface ListMcpServerToolsToolUse extends ToolUse {
 
 export interface GetMcpServerToolDefsToolUse extends ToolUse {
 	name: "get_mcp_server_tool_defs"
-	params: Partial<Pick<Record<ToolParamName, string>, "server_name">>
+	params: Partial<Pick<Record<ToolParamName, string>, "server_name" | "tool_names">>
+}
+
+export interface GetNativeToolDefToolUse extends ToolUse {
+	name: "get_native_tool_def"
+	params: Partial<Pick<Record<ToolParamName, string>, "tool_name">>
 }
 
 // Define tool group configuration
@@ -175,6 +181,7 @@ export const TOOL_DISPLAY_NAMES: Record<ToolName, string> = {
 	access_mcp_resource: "access mcp resources",
 	list_mcp_server_tools: "list mcp tools",
 	get_mcp_server_tool_defs: "get mcp tool definitions",
+	get_native_tool_def: "get native tool definitions",
 	ask_followup_question: "ask questions",
 	attempt_completion: "complete tasks",
 	switch_mode: "switch modes",
@@ -188,7 +195,14 @@ export type { ToolGroup }
 // Define available tool groups.
 export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 	read: {
-		tools: ["read_file", "fetch_instructions", "search_files", "list_files", "list_code_definition_names"],
+		tools: [
+			"read_file",
+			"fetch_instructions",
+			"search_files",
+			"list_files",
+			"list_code_definition_names",
+			"get_native_tool_def",
+		],
 	},
 	edit: {
 		tools: ["apply_diff", "write_to_file", "append_to_file", "insert_content", "search_and_replace"],

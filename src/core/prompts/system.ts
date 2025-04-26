@@ -23,6 +23,7 @@ import {
 	getCapabilitiesSection,
 	getModesSection,
 	addCustomInstructions,
+	getConnectedMcpToolDescriptions,
 } from "./sections"
 import { loadSystemPromptFile } from "./sections/custom-system-prompt"
 import { formatLanguage } from "../../shared/language"
@@ -143,11 +144,15 @@ export const SYSTEM_PROMPT = async (
 			mode,
 			{ language: language ?? formatLanguage(vscode.env.language), rooIgnoreInstructions },
 		)
-		// For file-based prompts, don't include the tool sections
+
+		// Generate descriptions for connected MCP server tools
+		const connectedMcpToolsSection = getConnectedMcpToolDescriptions(mcpHub)
+
+		// Include MCP tool definitions in custom file-based prompt
 		return `${roleDefinition}
 
 ${fileCustomSystemPrompt}
-
+${connectedMcpToolsSection}
 ${customInstructions}`
 	}
 

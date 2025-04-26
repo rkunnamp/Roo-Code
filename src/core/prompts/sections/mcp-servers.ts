@@ -23,7 +23,7 @@ export async function getMcpServersSection(
 		${JSON.stringify(tool.inputSchema, null, 2).split("\n").join("\n    ")}`
 									: ""
 
-								return `- ${tool.name}`
+								return `- ${tool.name}: ${tool.description}`
 							})
 							.join("\n\n")
 
@@ -74,4 +74,38 @@ The user may ask you something along the lines of "add a tool" that does some fu
 <task>create_mcp_server</task>
 </fetch_instructions>`
 	)
+}
+
+/**
+ * Generates descriptions only for tools provided by currently connected MCP servers.
+ */
+export function getConnectedMcpToolDescriptions(mcpHub?: McpHub): string {
+	if (!mcpHub) {
+		return ""
+	}
+
+	const connectedServersWithTools = mcpHub
+		.getServers()
+		.filter((server) => server.status === "connected" && server.tools && server.tools.length > 0)
+
+	if (connectedServersWithTools.length === 0) {
+		return ""
+	}
+
+	const descriptions = connectedServersWithTools
+		.map((server) => {
+			const toolList = server
+				.tools!.map((tool) => {
+					const inputSchemaInfo = tool.inputSchema
+						? `\n    Input Schema: ${JSON.stringify(tool.inputSchema, null, 2).replace(/\n/g, "\n    ")}`
+						: ""
+					return `- **${tool.name}**: ${tool.description}`
+				})
+				.join("\n")
+
+			return `### Tools from ${server.name}\n${toolList}`
+		})
+		.join("\n\n")
+
+	return `\n\nCONNECTED MCP SERVER TOOLS\n\n${descriptions}\n`
 }

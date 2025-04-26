@@ -21,6 +21,7 @@ import { getUseMcpToolDescription } from "./use-mcp-tool"
 import { getAccessMcpResourceDescription } from "./access-mcp-resource"
 import { getListMcpServerToolsDescription } from "./list-mcp-server-tools"
 import { getGetMcpServerToolDefsDescription } from "./get-mcp-server-tool-defs"
+import { getGetNativeToolDefDescription } from "./get-native-tool-def"
 import { getSwitchModeDescription } from "./switch-mode"
 import { getNewTaskDescription } from "./new-task"
 
@@ -41,6 +42,7 @@ const toolDescriptionMap: Record<string, (args: ToolArgs) => string | undefined>
 	access_mcp_resource: (args) => getAccessMcpResourceDescription(args),
 	list_mcp_server_tools: (args) => getListMcpServerToolsDescription(args),
 	get_mcp_server_tool_defs: (args) => getGetMcpServerToolDefsDescription(args),
+	get_native_tool_def: (args) => getGetNativeToolDefDescription(args),
 	switch_mode: () => getSwitchModeDescription(),
 	new_task: (args) => getNewTaskDescription(args),
 	insert_content: (args) => getInsertContentDescription(args),
@@ -128,6 +130,7 @@ export {
 	getAccessMcpResourceDescription,
 	getListMcpServerToolsDescription,
 	getGetMcpServerToolDefsDescription,
+	getGetNativeToolDefDescription,
 	getSwitchModeDescription,
 	getInsertContentDescription,
 	getSearchAndReplaceDescription,

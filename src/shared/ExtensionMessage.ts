@@ -280,6 +280,11 @@ export interface ClineAskUseMcpServer {
 	uri?: string
 }
 
+export interface ClineAskNativeToolDef {
+	type: "get_native_tool_def"
+	toolName?: string
+}
+
 export interface ClineApiReqInfo {
 	request?: string
 	tokensIn?: number

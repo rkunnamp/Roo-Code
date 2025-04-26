@@ -12,11 +12,14 @@ export async function getMcpServerToolDefsTool(
 	removeClosingTag: RemoveClosingTag,
 ) {
 	const server_name: string | undefined = block.params.server_name
+	const tool_names: string | undefined = block.params.tool_names
+
 	try {
 		if (block.partial) {
 			const partialMessage = JSON.stringify({
 				type: "get_mcp_server_tool_defs" as ClineAskUseMcpServer["type"],
 				serverName: removeClosingTag("server_name", server_name),
+				toolNames: removeClosingTag("tool_names", tool_names),
 			})
 
 			await cline.ask("use_mcp_server", partialMessage, block.partial).catch(() => {})
@@ -34,6 +37,7 @@ export async function getMcpServerToolDefsTool(
 			const completeMessage = JSON.stringify({
 				type: "get_mcp_server_tool_defs" as ClineAskUseMcpServer["type"],
 				serverName: server_name,
+				toolNames: tool_names,
 			})
 
 			const didApprove = await askApproval("use_mcp_server", completeMessage)
@@ -55,11 +59,29 @@ export async function getMcpServerToolDefsTool(
 				return
 			}
 
+			// Parse tool_names into an array if provided
+			let toolNamesArray: string[] | undefined
+			if (tool_names) {
+				toolNamesArray = tool_names.split(",").map((name) => name.trim())
+			}
+
 			// Format the tools definitions in XML format
 			let toolsXml = ""
 
 			if (server.tools && server.tools.length > 0) {
-				toolsXml = server.tools
+				// Filter tools if toolNamesArray is defined
+				const filteredTools = toolNamesArray
+					? server.tools.filter((tool) => toolNamesArray!.includes(tool.name || ""))
+					: server.tools
+
+				if (toolNamesArray && filteredTools.length === 0) {
+					const message = `No matching tools found for the specified names: ${tool_names}`
+					await cline.say("error", message)
+					pushToolResult(formatResponse.toolError(message))
+					return
+				}
+
+				toolsXml = filteredTools
 					.map((tool) => {
 						return `<tool>
   <name>${escapeXml(tool.name || "")}</name>
@@ -73,7 +95,7 @@ export async function getMcpServerToolDefsTool(
 				toolsXml = "<tools></tools>"
 			}
 
-			const resultText = `Tool definitions for ${server_name}:\n\n${toolsXml}`
+			const resultText = `Tool definitions for ${server_name}${toolNamesArray ? ` (filtered to: ${toolNamesArray.join(", ")})` : ""}:\n\n${toolsXml}`
 
 			await cline.say("mcp_server_response", resultText)
 			pushToolResult(formatResponse.toolResult(resultText))
